@@ -3,12 +3,11 @@ import torch.nn as nn
 import torch.optim as optim
 import numpy as np
 from collections import deque
-import random
 from environment import Job
 from algorithms.dqn.network import DQNNetwork
 
 class DQNAgent:
-    def __init__(self, input_size, hidden_size, output_size, learning_rate=0.01, discount_factor=0.9, replay_memory_size=800, mini_batch_size=30, target_update_frequency=50, epsilon=0.9, epsilon_decay=0.002,):
+    def __init__(self, input_size, hidden_size, output_size, seed, learning_rate=0.01, discount_factor=0.9, replay_memory_size=800, mini_batch_size=30, target_update_frequency=50, epsilon=0.9, epsilon_decay=0.002, ):
         self.input_size = input_size
         self.hidden_size = hidden_size
         self.output_size = output_size
@@ -20,6 +19,8 @@ class DQNAgent:
         self.epsilon = epsilon
         self.epsilon_decay = epsilon_decay
         self.steps = 0
+        self.seed = seed
+        torch.manual_seed(int(seed.integers(0, 2**32)))
 
         self.online_network = DQNNetwork(input_size, hidden_size, output_size)
         self.target_network = DQNNetwork(input_size, hidden_size, output_size)
@@ -35,8 +36,8 @@ class DQNAgent:
     # select an action based on epsilon-greedy algorithm (exploration vs exploitation)
     def select_action(self, state):
         # exploration
-        if random.random() < self.epsilon:
-            return random.randint(0, self.output_size - 1)
+        if self.seed.random() < self.epsilon:
+            return self.seed.integers(0, self.output_size)
         # exploitation
         else:
             with torch.no_grad():
@@ -49,7 +50,8 @@ class DQNAgent:
             return
         
         # Sample a mini-batch from the replay memory
-        mini_batch = random.sample(self.memory, self.mini_batch_size)
+        indices = self.seed.choice(len(self.memory), size=self.mini_batch_size, replace=False)
+        mini_batch = [list(self.memory)[i] for i in indices]
         states, actions, rewards, next_states = zip(*mini_batch)
 
         # Convert to tensors
