@@ -1,3 +1,4 @@
+import random
 import torch
 import torch.nn as nn
 import torch.optim as optim
@@ -7,7 +8,7 @@ from environment import Job
 from algorithms.dqn.network import DQNNetwork
 
 class DQNAgent:
-    def __init__(self, input_size, hidden_size, output_size, seed, learning_rate=0.01, discount_factor=0.9, replay_memory_size=800, mini_batch_size=30, target_update_frequency=500, epsilon=0.9, epsilon_decay=0.002, ):
+    def __init__(self, input_size, hidden_size, output_size, seed, learning_rate=0.01, discount_factor=0.9, replay_memory_size=800, mini_batch_size=30, target_update_frequency=500, epsilon=0.01, epsilon_decay=0.002, ):
         self.input_size = input_size
         self.hidden_size = hidden_size
         self.output_size = output_size
@@ -28,30 +29,31 @@ class DQNAgent:
         
         self.memory = deque(maxlen=replay_memory_size)
 
-        self.optimizer = optim.Adam(self.online_network.parameters(), lr=learning_rate)
+        self.optimizer = optim.RMSprop(self.online_network.parameters(), lr=learning_rate)
 
     def remember(self, state, action, reward, next_state):
         self.memory.append((state, action, reward, next_state))
 
     # select an action based on epsilon-greedy algorithm (exploration vs exploitation)
     def select_action(self, state):
-        # exploration
         if self.seed.random() < self.epsilon:
-            return self.seed.integers(0, self.output_size)
-        # exploitation
-        else:
+            # exploit
             with torch.no_grad():
                 state_tensor = torch.tensor(state, dtype=torch.float32)
                 q_values = self.online_network(state_tensor)
                 return torch.argmax(q_values).item()
+        else:
+            # explore
+            return int(self.seed.integers(0, self.output_size))
 
     def train(self):
         if len(self.memory) < self.mini_batch_size:
             return
         
         # Sample a mini-batch from the replay memory
-        indices = self.seed.choice(len(self.memory), size=self.mini_batch_size, replace=False)
-        mini_batch = [list(self.memory)[i] for i in indices]
+        memory_list = list(self.memory)
+        indices = self.seed.choice(len(memory_list), size=self.mini_batch_size, replace=False)
+        mini_batch = [memory_list[i] for i in indices]
         states, actions, rewards, next_states = zip(*mini_batch)
 
         # Convert to tensors
@@ -82,8 +84,8 @@ class DQNAgent:
         if self.steps % self.target_update_frequency == 0:
             self.update_target_network()
         # Decay epsilon
-        if self.epsilon > 0.01:
-            self.epsilon -= self.epsilon_decay
+        if self.epsilon < 0.9:
+            self.epsilon += self.epsilon_decay
     
     def update_target_network(self):
         self.target_network.load_state_dict(self.online_network.state_dict())
