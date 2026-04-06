@@ -3,39 +3,69 @@ from environment import CloudEnvironment
 from algorithms.dqn.agent import DQNAgent
 import numpy as np
 from algorithms.random.scheduler import RandomScheduler
+from algorithms.round_robin.scheduler import RoundRobinScheduler
+from algorithms.earliest.scheduler import EarliestVMScheduler
 from utils import Utils
 
 
 arrival_rates = [10, 15, 20, 25, 30]
 
 results = {
-    'dqn': {'success_rate': [], 'avg_cost': [], 'avg_response_time': []},
-    'random': {'success_rate': [], 'avg_cost': [], 'avg_response_time': []},
+    'DQN': {'success_rate': [], 'avg_cost': [], 'avg_response_time': []},
+    'Random': {'success_rate': [], 'avg_cost': [], 'avg_response_time': []},
+    'Round Robin': {'success_rate': [], 'avg_cost': [], 'avg_response_time': []},
+    'Earliest': {'success_rate': [], 'avg_cost': [], 'avg_response_time': []},
 }
 
 for rate in arrival_rates:
     print(f"\nRunning simulation for arrival rate = {rate}")
 
-    # create environment and agent for each rate
-    seed = np.random.default_rng(1)
+    seed_no = 100
+
+    # create environment and agent for each rate    
+    seed = np.random.default_rng(seed_no)
     env = Utils.create_environment(seed, rate)
     success_rate, avg_cost, avg_response_time = Utils.run_dqn(env)
-    results['dqn']['success_rate'].append(success_rate)
-    results['dqn']['avg_cost'].append(avg_cost)
-    results['dqn']['avg_response_time'].append(avg_response_time)
+    results['DQN']['success_rate'].append(success_rate)
+    results['DQN']['avg_cost'].append(avg_cost)
+    results['DQN']['avg_response_time'].append(avg_response_time)
     print("DQN Scheduler:")
     print(f"  Success Rate: {success_rate*100:.2f}%")
     print(f"  Average Cost: {avg_cost:.4f}")
     print(f"  Average Response Time: {avg_response_time:.4f}")
 
     # Random 
-    seed = np.random.default_rng(1)
+    seed = np.random.default_rng(seed_no)
     env = Utils.create_environment(seed, rate)
     success_rate, avg_cost, avg_response_time = Utils.run_scheduler(env, RandomScheduler(seed))
-    results['random']['success_rate'].append(success_rate)
-    results['random']['avg_cost'].append(avg_cost)
-    results['random']['avg_response_time'].append(avg_response_time)
+    results['Random']['success_rate'].append(success_rate)
+    results['Random']['avg_cost'].append(avg_cost)
+    results['Random']['avg_response_time'].append(avg_response_time)
     print("Random Scheduler:")
+    print(f"  Success Rate: {success_rate*100:.2f}%")
+    print(f"  Average Cost: {avg_cost:.4f}")
+    print(f"  Average Response Time: {avg_response_time:.4f}")
+
+    # Round Robin
+    seed = np.random.default_rng(seed_no)
+    env = Utils.create_environment(seed, rate)
+    success_rate, avg_cost, avg_response_time = Utils.run_scheduler(env, RoundRobinScheduler())
+    results['Round Robin']['success_rate'].append(success_rate)
+    results['Round Robin']['avg_cost'].append(avg_cost)
+    results['Round Robin']['avg_response_time'].append(avg_response_time)
+    print("Round Robin Scheduler:")
+    print(f"  Success Rate: {success_rate*100:.2f}%")
+    print(f"  Average Cost: {avg_cost:.4f}")
+    print(f"  Average Response Time: {avg_response_time:.4f}")
+
+    # Earliest VM
+    seed = np.random.default_rng(seed_no)
+    env = Utils.create_environment(seed, rate)
+    success_rate, avg_cost, avg_response_time = Utils.run_scheduler(env, EarliestVMScheduler())
+    results['Earliest']['success_rate'].append(success_rate)
+    results['Earliest']['avg_cost'].append(avg_cost)
+    results['Earliest']['avg_response_time'].append(avg_response_time)
+    print("Earliest VM Scheduler:")
     print(f"  Success Rate: {success_rate*100:.2f}%")
     print(f"  Average Cost: {avg_cost:.4f}")
     print(f"  Average Response Time: {avg_response_time:.4f}")
