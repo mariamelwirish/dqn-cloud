@@ -7,7 +7,7 @@ from environment import Job
 from algorithms.dqn.network import DQNNetwork
 
 class DQNAgent:
-    def __init__(self, input_size, hidden_size, output_size, seed, learning_rate=0.01, discount_factor=0.9, replay_memory_size=800, mini_batch_size=30, target_update_frequency=50, epsilon=0.9, epsilon_decay=0.002, ):
+    def __init__(self, input_size, hidden_size, output_size, seed, learning_rate=0.01, discount_factor=0.9, replay_memory_size=800, mini_batch_size=30, target_update_frequency=500, epsilon=0.9, epsilon_decay=0.002, ):
         self.input_size = input_size
         self.hidden_size = hidden_size
         self.output_size = output_size
