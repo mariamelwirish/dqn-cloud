@@ -54,10 +54,10 @@ class VM:
         return job.wait_time + job.exe_time
     
     def calculate_cost(self, job: Job):
-        return self.v_cost * job.exe_time
+        return 0.1 + job.exe_time * self.v_cost
 
     def calculate_success(self, job: Job):
-        if job.response_time < job.qos:
+        if job.response_time <= job.qos:
             return 1
         else:
             return 0
@@ -75,14 +75,13 @@ class VM:
     
 
 class CloudEnvironment:
-    def __init__(self, n_vms, n_jobs, io_vm_ratio, io_job_ratio, mean_job_arrival_rate, mean_job_length, variance_job_length, seed,):
+    def __init__(self, n_vms, n_jobs, mean_job_arrival_rate, mean_job_length, job_len_std, io_job_ratio, seed,):
         self.n_vms = n_vms
         self.n_jobs = n_jobs
-        self.io_vm_ratio = io_vm_ratio
-        self.io_job_ratio = io_job_ratio
         self.mean_job_arrival_rate = mean_job_arrival_rate
         self.mean_job_length = mean_job_length
-        self.variance_job_length = variance_job_length
+        self.job_len_std = job_len_std
+        self.io_job_ratio = io_job_ratio
         self.seed = seed
 
         self.vms = self.create_vms()
@@ -92,16 +91,13 @@ class CloudEnvironment:
 
     def create_vms(self) -> list[VM]:
         vms = []
-        # create exactly the right number of each type
-        n_io_vms = int(self.n_vms * self.io_vm_ratio)
-        types = ['I/O'] * n_io_vms + ['CPU'] * (self.n_vms - n_io_vms)
-        self.seed.shuffle(types)  # shuffle so they're not all I/O first
+        types = [0,0,0,0,0,1,1,1,1,1]
+        speed_multipliers = [1,1,1.1,1.1,1.2,1,1,1.1,1.1,1.2]
+        costs = [1,1,2,2,4,1,1,2,2,4]
 
         for i in range(self.n_vms):
-            vm_type = types[i]
-            v_com = self.seed.uniform(1000, 3000)
-            v_cost = self.seed.uniform(4, 5)
-            vms.append(VM(i, v_com, vm_type, v_cost))
+            v_com = 1000 * speed_multipliers[i]
+            vms.append(VM(i, v_com, types[i], costs[i]))
         
         return vms
 
@@ -109,20 +105,27 @@ class CloudEnvironment:
         jobs = []
         current_time = 0
 
-        # create exactly the right number of each type
-        n_io_jobs = int(self.n_jobs * self.io_job_ratio)
-        types = ['I/O'] * n_io_jobs + ['CPU'] * (self.n_jobs - n_io_jobs)
-        self.seed.shuffle(types)  # shuffle so they're not all I/O first
-
         for i in range(self.n_jobs):
-            job_type = types[i]
+            # job type
+            if self.seed.uniform() < self.io_job_ratio:
+                job_type = 0
+            else:
+                job_type = 1
+            
+            # arrival time
             inter_arrival = self.seed.exponential(1 / self.mean_job_arrival_rate)
             current_time += inter_arrival
-            arrival_time = current_time            
-            req_com = max(1, self.seed.normal(self.mean_job_length, np.sqrt(self.variance_job_length)))
-            exe_time_estimate = req_com / 2000 
-            qos = exe_time_estimate * self.seed.uniform(2, 4)  
+            arrival_time = current_time
+            
+            # job length
+            req_com = int(self.seed.normal(self.mean_job_length, self.job_len_std))
+            
+            # qos
+            length = req_com / 1000
+            qos = 0.25
+            
             jobs.append(Job(i, arrival_time, req_com, job_type, qos))
+        
         return jobs
     
     def get_state(self, job: Job):
@@ -131,10 +134,11 @@ class CloudEnvironment:
             waiting_time = vm.calculate_waiting_time(job)
             waiting_times.append(waiting_time)
         
-        return [job.req_com, job.qos] + waiting_times
+        return [job.job_type] + waiting_times
     
-    def calculate_reward(self, job: Job):
-        if job.success == 1:
-            return (1 / job.response_time) + (1 / job.cost)
-        else:
-            return 0
+    def calculate_reward(self, job: Job, vm: VM):
+        length = job.req_com / 1000
+        cost = 0.1 + job.exe_time * vm.v_cost
+        reward = (1 + np.exp(1.5 - cost)) * length / job.response_time
+        return reward
+            
