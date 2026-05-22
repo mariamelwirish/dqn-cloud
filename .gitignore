@@ -18,3 +18,7 @@ __pycache__/
 
 # macOS system files
 .DS_Store
+
+# Data Files
+dataset/google_cluster/
+dataset/alibaba/data
