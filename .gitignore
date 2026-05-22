@@ -20,5 +20,5 @@ __pycache__/
 .DS_Store
 
 # Data Files
-dataset/google_cluster/
+dataset/google_cluster/data
 dataset/alibaba/data

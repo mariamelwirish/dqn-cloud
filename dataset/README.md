@@ -13,7 +13,13 @@ This directory contains real cloud workload data used to calibrate simulation pa
 
 The trace is available in JSON format from Google Cloud Storage. Each cell's data is stored in a bucket named `clusterdata_2019_${CELL}` where `${CELL}` is one of: `a`, `b`, `c`, `d`, `e`, `f`, `g`, `h`.
 
-1. Download a shard using `gsutil`:
+1. Create a `data` directory inside `google_cluster` and navigate to it:
+```bash
+mkdir google_cluster/data
+cd google_cluster/data
+```
+
+2. Download a shard using `gsutil`:
 ```bash
 gsutil cp gs://clusterdata_2019_a/instance_events-000000000000.json.gz data/google_cluster/
 gsutil cp gs://clusterdata_2019_a/machine_events-000000000000.json.gz data/google_cluster/
