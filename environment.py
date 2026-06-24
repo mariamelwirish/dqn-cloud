@@ -1,5 +1,4 @@
 from collections import deque
-import numpy as np
 
 
 class Task:
@@ -57,24 +56,16 @@ class VM:
 class CloudEnvironment:
     ''' Simulation Parameters '''
     # VM
-    MIN_CPU_SPEED = 500 # MIPS
-    MAX_CPU_SPEED = 2000 # MIPS
+    MIN_CPU_SPEED = 1000 # MIPS
+    MAX_CPU_SPEED = 3000 # MIPS
     MIN_MEMORY_CAPACITY = 1024 # MBs
-    MAX_MEMORY_CAPACITY = 65536 # MBs
+    MAX_MEMORY_CAPACITY = 8192 # MBs
 
     # Task 
     MIN_JOB_LENGTH = 100 # MIPS
-    MAX_JOB_LENGTH = 1500 # MIPS
-    MIN_MEMORY_REQUEST = 100 # MBs
-    MAX_MEMORY_REQUEST = 1000 # MBs
-
-    # VM tiers derived from Google Cluster Trace 2019 normalized capacity structure
-    # Reference machine: 1000 MIPS, 32 GB RAM
-    VM_TIERS = [
-        {'cpu_speed': 500,  'memory_capacity': 16384,  'count': 3},  # small  (0.5x NCU)
-        {'cpu_speed': 1000, 'memory_capacity': 32768,  'count': 4},  # medium (1.0x NCU)
-        {'cpu_speed': 2000, 'memory_capacity': 65536,  'count': 3},  # large  (2.0x NCU)
-    ]
+    MAX_JOB_LENGTH = 500 # MIPS
+    MIN_MEMORY_REQUEST = MIN_MEMORY_CAPACITY / 2 # MBs
+    MAX_MEMORY_REQUEST = MAX_MEMORY_CAPACITY / 2 # MBs
 
     ALPHA = 0.5
 
@@ -96,72 +87,38 @@ class CloudEnvironment:
 
         
 
-    # def _create_vms(self):
-    #     vms = []
-    #     for _ in range(self.n_vms):
-    #         cpu_speed = self.seed.uniform(CloudEnvironment.MIN_CPU_SPEED, CloudEnvironment.MAX_CPU_SPEED) # CPU speed in MIPS
-    #         memory_capacity = self.seed.uniform(CloudEnvironment.MIN_MEMORY_CAPACITY, CloudEnvironment.MAX_MEMORY_CAPACITY) # Memory capacity in MBs
-    #         vms.append(VM(cpu_speed, memory_capacity))
-    #     return vms
-
     def _create_vms(self):
         vms = []
-        for tier in CloudEnvironment.VM_TIERS:
-            for _ in range(tier['count']):
-                vms.append(VM(tier['cpu_speed'], tier['memory_capacity']))
-        self.seed.shuffle(vms)  # randomize order so tier pattern isn't positional
-        # for vm in vms: print(vm.cpu_speed, vm.memory_capacity)
+        for _ in range(self.n_vms):
+            cpu_speed = self.seed.uniform(CloudEnvironment.MIN_CPU_SPEED, CloudEnvironment.MAX_CPU_SPEED) # CPU speed in MIPS
+            memory_capacity = self.seed.uniform(CloudEnvironment.MIN_MEMORY_CAPACITY, CloudEnvironment.MAX_MEMORY_CAPACITY) # Memory capacity in MBs
+            vms.append(VM(cpu_speed, memory_capacity))
         return vms
 
 
     
-    # def _generate_tasks(self):
-    #     tasks = []
-    #     arrival_time = 0.0
-    #     avg_processing_time = (CloudEnvironment.MIN_CPU_SPEED + CloudEnvironment.MAX_CPU_SPEED) / 2
-    #     job_length = np.clip(self.seed.lognormal(mean=5.5, sigma=0.8), 50, 1500)
-
-
-    #     for _ in range(self.n_tasks):
-    #         # Arrival time
-    #         inter_arrival_time = self.seed.exponential(1 / self.arrival_rate)
-    #         arrival_time += inter_arrival_time
-
-    #         # Resources Demand
-    #         job_length = self.seed.uniform(CloudEnvironment.MIN_JOB_LENGTH, CloudEnvironment.MAX_JOB_LENGTH) # Job Length in MIPS
-    #         memory_demand = self.seed.uniform(CloudEnvironment.MIN_MEMORY_REQUEST, CloudEnvironment.MAX_MEMORY_REQUEST) # RAM demand in MBs
-
-    #         # Deadline 
-    #         # Duration = (ci / Cj) * Uniform Random Multiplier
-    #         expected_execution_time = job_length / avg_processing_time
-    #         multiplier = self.seed.uniform(2.0, 4.0) 
-    #         deadline = arrival_time + expected_execution_time * multiplier
-
-    #         is_io = self.seed.random() < 0.5
-    #         # Create Task and add to list
-    #         tasks.append(Task(arrival_time, job_length, memory_demand, deadline, is_io))
-
-    #     for task in tasks[:10]:
-    #         print(f"{task.cpu_demand:.1f}")
-    #     return tasks
-
     def _generate_tasks(self):
         tasks = []
         arrival_time = 0.0
         avg_processing_time = (CloudEnvironment.MIN_CPU_SPEED + CloudEnvironment.MAX_CPU_SPEED) / 2
 
         for _ in range(self.n_tasks):
+            # Arrival time
             inter_arrival_time = self.seed.exponential(1 / self.arrival_rate)
             arrival_time += inter_arrival_time
 
-            job_length = np.clip(self.seed.lognormal(mean=5.5, sigma=0.8), 50, 1500)  # ← inside loop
-            memory_demand = self.seed.uniform(CloudEnvironment.MIN_MEMORY_REQUEST, CloudEnvironment.MAX_MEMORY_REQUEST)
+            # Resources Demand
+            job_length = self.seed.uniform(CloudEnvironment.MIN_JOB_LENGTH, CloudEnvironment.MAX_JOB_LENGTH) # Job Length in MIPS
+            memory_demand = self.seed.uniform(CloudEnvironment.MIN_MEMORY_REQUEST, CloudEnvironment.MAX_MEMORY_REQUEST) # RAM demand in MBs
 
+            # Deadline 
+            # Duration = (ci / Cj) * Uniform Random Multiplier
             expected_execution_time = job_length / avg_processing_time
-            multiplier = self.seed.uniform(2.0, 4.0)
+            multiplier = self.seed.uniform(1.5, 2.0) 
             deadline = arrival_time + expected_execution_time * multiplier
 
             is_io = self.seed.random() < 0.5
+            # Create Task and add to list
             tasks.append(Task(arrival_time, job_length, memory_demand, deadline, is_io))
 
         return tasks
@@ -215,9 +172,9 @@ class CloudEnvironment:
     def assign_task(self, task, vm):
         self.cascade_misses = 0
         if task.is_io:
-            task.execution_time = 2 * task.cpu_demand / vm.cpu_speed 
-        else:
             task.execution_time = task.cpu_demand / vm.cpu_speed 
+        else:
+            task.execution_time = 2 * task.cpu_demand / vm.cpu_speed 
         task.remaining_time = task.execution_time
         task.queue_entry_times.append(task.arrival_time)
 
@@ -281,6 +238,6 @@ class CloudEnvironment:
     
     def compute_reward(self, task):
         margin = (task.deadline - (task.arrival_time + task.response_time)) / task.deadline
-        reward = margin - 0.2 * self.cascade_misses
+        reward = margin - 0.5 * self.cascade_misses
         return reward
         

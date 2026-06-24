@@ -7,11 +7,10 @@ from algorithms.round_robin.scheduler import RoundRobinScheduler
 from algorithms.earliest.scheduler import EarliestVMScheduler
 
 
-
 # --- Experiment Parameters ---
 ARRIVAL_RATES = [10, 15, 20, 25, 30]
 
-SEED_NUMBER = 123456
+SEED_NUMBER = 1
 N_EPOCHS = 10
 
 # --- Results Storage ---
@@ -31,8 +30,6 @@ for rate in ARRIVAL_RATES:
     Task.reset_counter()
     VM.reset_counter()
     env = Utils.create_environment(seed, rate)
-
-    
     success_rate, avg_response_time, cascade_rate = Utils.run_dqn(env, seed, N_EPOCHS)
     results['DQN']['success_rate'].append(success_rate)
     results['DQN']['avg_response_time'].append(avg_response_time)
